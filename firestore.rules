@@ -1,0 +1,88 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definition
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Phase 4: Validation Helper for Document
+    function isValidDocument(data) {
+      return data.keys().hasAll(['doc_type', 'doc_no', 'title', 'date_issued', 'owner_id', 'created_at', 'updated_at', 'category', 'academic_year', 'status']) 
+        && data.doc_type in ['incoming', 'outgoing']
+        && data.doc_no is string && data.doc_no.size() <= 100
+        && data.title is string && data.title.size() <= 1000
+        && data.academic_year is string && data.academic_year.size() <= 100
+        && data.date_issued is timestamp
+        && data.owner_id == request.auth.uid
+        && data.created_at == request.time
+        && data.updated_at == request.time;
+    }
+
+    function isValidDocumentUpdate(data) {
+      return data.doc_type in ['incoming', 'outgoing']
+        && data.doc_no is string && data.doc_no.size() <= 100
+        && data.title is string && data.title.size() <= 1000
+        && data.academic_year is string && data.academic_year.size() <= 100
+        && data.date_issued is timestamp
+        && data.updated_at == request.time;
+    }
+
+    function isLecturerOrAdmin() {
+      let role = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isSignedIn() && (role == 'admin' || role == 'lecturer');
+    }
+
+    // 1. Documents Collection
+    match /documents/{documentId} {
+      // Guest cannot read, only Lecturer and Admin can read
+      allow read: if isLecturerOrAdmin();
+      
+      // Only Admin can add documents
+      allow create: if isAdmin() && isValidDocument(incoming());
+      
+      // Only Admin can edit documents
+      allow update: if isAdmin()
+        && isValidDocumentUpdate(incoming())
+        && incoming().owner_id == existing().owner_id
+        && incoming().created_at == existing().created_at;
+        
+      allow delete: if isAdmin();
+    }
+
+    // 2. Users Collection
+    match /users/{userId} {
+      // Guest can only read their own profile, Lecturer/Admin can read all
+      allow read: if isLecturerOrAdmin() || isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isAdmin() || (isOwner(userId) && incoming().role == existing().role);
+      allow delete: if isAdmin();
+    }
+  }
+}

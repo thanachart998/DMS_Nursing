@@ -1,0 +1,6 @@
+{
+  "name": "ระบบสารบรรณ คณะพยาบาลศาสตร์",
+  "description": "ระบบจัดการเอกสารรับ-ส่ง (Document Management System) สำหรับคณะพยาบาลศาสตร์ มหาวิทยาลัยปทุมธานี รองรับการค้นหาและจัดเก็บไฟล์ PDF",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

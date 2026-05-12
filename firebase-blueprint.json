@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Document": {
+      "title": "Document",
+      "description": "A document record in the system (incoming or outgoing)",
+      "type": "object",
+      "properties": {
+        "doc_type": { "type": "string", "enum": ["incoming", "outgoing"] },
+        "doc_no": { "type": "string", "description": "Document identification number (e.g., พน. 01/2569)" },
+        "title": { "type": "string", "description": "Subject/Title of the document" },
+        "sender": { "type": "string" },
+        "receiver": { "type": "string" },
+        "date_issued": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" },
+        "academic_year": { "type": "string", "description": "Academic year for classification (e.g., ปีการศึกษา 2568)" },
+        "status": { "type": "string", "enum": ["pending", "received", "dispatched", "archived"] },
+        "file_url": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "owner_id": { "type": "string" }
+      },
+      "required": ["doc_type", "doc_no", "title", "date_issued", "owner_id"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Additional user information",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "staff", "general"] }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/documents/{documentId}": {
+      "schema": "Document",
+      "description": "Collection of all documents"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and metadata"
+    }
+  }
+}
