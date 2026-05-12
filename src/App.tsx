@@ -164,7 +164,7 @@ export default function App() {
         <div className="p-6 flex items-center gap-3 border-b border-slate-800 overflow-hidden whitespace-nowrap">
           <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
             <img 
-              src="/logo.png" 
+              src="../logo.png" 
               alt="Logo" 
               className="w-full h-full object-contain"
               referrerPolicy="no-referrer"
