@@ -63,7 +63,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     if (type !== 'outgoing') return;
     
     try {
-      const prefix = formData.doc_subtype === 'internal' ? 'พยบ.' : 'พยบ.น.';
+      const prefix = formData.doc_subtype === 'internal' ? 'พย.บ.' : 'พย.บ. น.';
       const year = formData.academic_year.replace('ปีการศึกษา ', '');
       
       const q = query(
