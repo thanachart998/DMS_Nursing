@@ -76,7 +76,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 2. Users Collection
+    // 2. Petitions Collection
+    match /petitions/{petitionId} {
+      allow read: if isLecturerOrAdmin() || isOwner(existing().owner_id);
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || isOwner(existing().owner_id);
+      allow delete: if isAdmin() || isOwner(existing().owner_id);
+    }
+
+    // 3. Users Collection
     match /users/{userId} {
       // Guest can only read their own profile, Lecturer/Admin can read all
       allow read: if isLecturerOrAdmin() || isOwner(userId);

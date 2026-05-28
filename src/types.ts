@@ -15,6 +15,23 @@ export interface DocumentRecord {
   category: string;
   academic_year: string;
   status: 'pending' | 'received' | 'dispatched' | 'archived';
+  receive_no?: string;
+  file_url?: string;
+  responsible_person?: string;
+  created_at: any;
+  updated_at: any;
+  owner_id: string;
+}
+
+export interface PetitionRecord {
+  id?: string;
+  topic: 'ลาออก' | 'พักการเรียน';
+  applicant_status: 'นักศึกษา' | 'อาจารย์';
+  first_name: string;
+  last_name: string;
+  identifier: string; // รหัสนักศึกษา/รหัสพนักงาน
+  academic_year: string;
+  date_issued: string;
   file_url?: string;
   created_at: any;
   updated_at: any;
@@ -25,6 +42,6 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
-  role: 'admin' | 'staff' | 'general';
+  role: 'admin' | 'lecturer' | 'guest';
   createdAt: any;
 }

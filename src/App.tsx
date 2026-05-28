@@ -29,8 +29,9 @@ import { cn } from './lib/utils';
 import Dashboard from './components/Dashboard';
 import DocumentPanel from './components/DocumentPanel';
 import UserManagement from './components/UserManagement';
+import PetitionPanel from './components/PetitionPanel';
 
-type View = 'dashboard' | 'incoming' | 'outgoing' | 'users';
+type View = 'dashboard' | 'incoming' | 'outgoing' | 'users' | 'petition';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -142,6 +143,7 @@ export default function App() {
     { id: 'dashboard', label: 'แผงควบคุม', icon: LayoutDashboard },
     { id: 'incoming', label: 'หนังสือรับเข้า', icon: Inbox },
     { id: 'outgoing', label: 'หนังสือส่งออก', icon: Send },
+    { id: 'petition', label: 'หนังสือคำร้อง', icon: FileText },
   ];
 
   const formTemplates = [
@@ -164,7 +166,7 @@ export default function App() {
         <div className="p-6 flex items-center gap-3 border-b border-slate-800 overflow-hidden whitespace-nowrap">
           <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
             <img 
-              src="../logo.png" 
+              src="/logo.png" 
               alt="Logo" 
               className="w-full h-full object-contain"
               referrerPolicy="no-referrer"
@@ -358,6 +360,16 @@ export default function App() {
                   exit={{ opacity: 0, x: -20 }}
                 >
                   <DocumentPanel type={activeView} userRole={userRole} />
+                </motion.div>
+              )}
+              {activeView === 'petition' && (
+                <motion.div
+                  key="petition-panel"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <PetitionPanel userRole={userRole} />
                 </motion.div>
               )}
               {activeView === 'users' && userRole === 'admin' && (
