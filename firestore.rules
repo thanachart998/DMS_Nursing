@@ -35,7 +35,7 @@ service cloud.firestore {
     // Phase 4: Validation Helper for Document
     function isValidDocument(data) {
       return data.keys().hasAll(['doc_type', 'doc_no', 'title', 'date_issued', 'owner_id', 'created_at', 'updated_at', 'category', 'academic_year', 'status']) 
-        && data.doc_type in ['incoming', 'outgoing']
+        && data.doc_type in ['incoming', 'outgoing', 'appointment']
         && data.doc_no is string && data.doc_no.size() <= 100
         && data.title is string && data.title.size() <= 1000
         && data.academic_year is string && data.academic_year.size() <= 100
@@ -46,7 +46,7 @@ service cloud.firestore {
     }
 
     function isValidDocumentUpdate(data) {
-      return data.doc_type in ['incoming', 'outgoing']
+      return data.doc_type in ['incoming', 'outgoing', 'appointment']
         && data.doc_no is string && data.doc_no.size() <= 100
         && data.title is string && data.title.size() <= 1000
         && data.academic_year is string && data.academic_year.size() <= 100

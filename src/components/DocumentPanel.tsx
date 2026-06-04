@@ -83,18 +83,22 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
   const existingAcademicYears = Array.from(new Set(docs.map(doc => doc.academic_year).filter(Boolean))).sort().reverse();
 
   const generateNextDocNo = async () => {
-    if (type !== 'outgoing') return;
+    if (type !== 'outgoing' && type !== 'appointment') return;
     
     try {
-      const prefix = formData.doc_subtype === 'internal' ? 'พย.บ. น.' : 'พย.บ.';
+      const prefix = type === 'appointment' ? 'พย.บ. ต.' : (formData.doc_subtype === 'internal' ? 'พย.บ. น.' : 'พย.บ.');
       const year = formData.academic_year.replace('ปีการศึกษา ', '');
       
-      const q = query(
-        collection(db, 'documents'),
-        where('doc_type', '==', 'outgoing'),
-        where('doc_subtype', '==', formData.doc_subtype),
+      const constraints: any[] = [
+        where('doc_type', '==', type),
         where('academic_year', '==', formData.academic_year)
-      );
+      ];
+
+      if (type !== 'appointment') {
+        constraints.push(where('doc_subtype', '==', formData.doc_subtype));
+      }
+
+      const q = query(collection(db, 'documents'), ...constraints);
       
       const snap = await getDocs(q);
       const existingDocs = snap.docs.map(d => d.data() as DocumentRecord);
@@ -111,7 +115,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
       }
       
       const paddedNum = String(nextNum).padStart(3, '0');
-      const spacing = formData.doc_subtype === 'external' ? ' ' : '';
+      const spacing = (type === 'outgoing' && formData.doc_subtype === 'external') ? ' ' : '';
       const newDocNo = `${prefix}${spacing}${paddedNum}/${year}`;
       setFormData(prev => ({ ...prev, doc_no: newDocNo }));
     } catch (err) {
@@ -290,7 +294,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">
-            {type === 'incoming' ? 'ทะเบียนหนังสือรับ' : 'ทะเบียนหนังสือส่ง'}
+            {type === 'appointment' ? 'ออกเลขคำสั่งแต่งตั้ง' : type === 'incoming' ? 'ทะเบียนหนังสือรับ' : 'ทะเบียนหนังสือส่ง'}
           </h1>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">รายการดัชนีและระบบลงทะเบียนเอกสาร</p>
         </div>
@@ -300,7 +304,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2"
           >
             <Plus size={14} />
-            ลงทะเบียนเอกสารใหม่
+            {type === 'appointment' ? 'ออกเลขคำสั่งแต่งตั้ง' : 'ลงทะเบียนเอกสารใหม่'}
           </button>
         )}
       </div>
@@ -357,7 +361,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                 <th className="py-4 px-6">{type === 'incoming' ? 'เลขที่หนังสือ / เลขรับ' : 'เลขที่หนังสือ'}</th>
                 <th className="py-4 px-6">วันที่</th>
                 <th className="py-4 px-6">ชื่อเรื่อง / หัวข้อ</th>
-                <th className="py-4 px-6">{type === 'incoming' ? 'จาก/ผู้ส่ง' : 'ถึง/ผู้รับ'}</th>
+                {type !== 'appointment' && <th className="py-4 px-6">{type === 'incoming' ? 'จาก/ผู้ส่ง' : 'ถึง/ผู้รับ'}</th>}
                 <th className="py-4 px-6 text-center">สถานะ</th>
                 <th className="py-4 px-6 text-right">จัดการ</th>
               </tr>
@@ -365,7 +369,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
             <tbody className="divide-y divide-slate-100 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center">
+                  <td colSpan={type === 'appointment' ? 5 : 6} className="px-6 py-20 text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600 mx-auto"></div>
                   </td>
                 </tr>
@@ -393,9 +397,11 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                       <div className="text-[11px] text-blue-400 font-bold uppercase mt-0.5 tracking-tighter border-l border-slate-200 pl-2">{doc.academic_year}</div>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-slate-500 font-medium uppercase tracking-tight">
-                    {type === 'incoming' ? doc.sender : doc.receiver}
-                  </td>
+                  {type !== 'appointment' && (
+                    <td className="py-4 px-6 text-slate-500 font-medium uppercase tracking-tight">
+                      {type === 'incoming' ? doc.sender : doc.receiver}
+                    </td>
+                  )}
                   <td className="py-4 px-6 text-center">
                     <span className={cn(
                       "px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-widest",
@@ -459,7 +465,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
               ))}
               {!loading && filteredDocs.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-24 text-center">
+                  <td colSpan={type === 'appointment' ? 5 : 6} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
                       <FileText size={48} className="opacity-10" />
                       <p className="text-xs font-bold uppercase tracking-[0.2em]">ไม่พบข้อมูลที่ค้นหา</p>
@@ -547,7 +553,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
               <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
                 <div>
                   <h2 className="text-base font-bold uppercase tracking-wider">{editingDoc ? 'แก้ไขข้อมูลการลงทะเบียน' : 'ลงทะเบียนเอกสารใหม่'}</h2>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">{type === 'incoming' ? 'ประเภท: หนังสือรับ' : 'ประเภท: หนังสือส่ง'}</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">{type === 'appointment' ? 'ประเภท: คำสั่งแต่งตั้ง' : type === 'incoming' ? 'ประเภท: หนังสือรับ' : 'ประเภท: หนังสือส่ง'}</p>
                 </div>
                 <button type="button" onClick={() => setModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded transition-colors text-slate-400">
                   <X size={18} />
@@ -591,10 +597,10 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           type="text" 
                           value={formData.doc_no}
                           onChange={(e) => setFormData({...formData, doc_no: e.target.value})}
-                          placeholder={type === 'incoming' ? "เช่น ศธ 0001/2569" : "เช่น พย.บ. 0001/2569"}
+                          placeholder={type === 'incoming' ? "เช่น ศธ 0001/2569" : type === 'appointment' ? "เช่น พย.บ. ต.001/2569" : "เช่น พย.บ. 0001/2569"}
                           className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow placeholder:text-slate-300"
                         />
-                        {type === 'outgoing' && !editingDoc && (
+                        {(type === 'outgoing' || type === 'appointment') && !editingDoc && (
                           <button 
                             type="button"
                             onClick={generateNextDocNo}
@@ -676,18 +682,20 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">
-                          {type === 'incoming' ? 'หน่วยงานผู้ส่ง' : 'หน่วยงานผู้รับ'}
-                        </label>
-                        <input 
-                          required
-                          type="text" 
-                          value={type === 'incoming' ? formData.sender : formData.receiver}
-                          onChange={(e) => setFormData(type === 'incoming' ? {...formData, sender: e.target.value} : {...formData, receiver: e.target.value})}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow uppercase"
-                        />
-                      </div>
+                      {type !== 'appointment' && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">
+                            {type === 'incoming' ? 'หน่วยงานผู้ส่ง' : 'หน่วยงานผู้รับ'}
+                          </label>
+                          <input 
+                            required
+                            type="text" 
+                            value={type === 'incoming' ? formData.sender : formData.receiver}
+                            onChange={(e) => setFormData(type === 'incoming' ? {...formData, sender: e.target.value} : {...formData, receiver: e.target.value})}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow uppercase"
+                          />
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">หมวดหมู่เอกสาร</label>
                         <select 

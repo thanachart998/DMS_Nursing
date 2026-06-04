@@ -31,7 +31,7 @@ import DocumentPanel from './components/DocumentPanel';
 import UserManagement from './components/UserManagement';
 import PetitionPanel from './components/PetitionPanel';
 
-type View = 'dashboard' | 'incoming' | 'outgoing' | 'users' | 'petition';
+type View = 'dashboard' | 'incoming' | 'outgoing' | 'appointment' | 'users' | 'petition';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -143,6 +143,7 @@ export default function App() {
     { id: 'dashboard', label: 'แผงควบคุม', icon: LayoutDashboard },
     { id: 'incoming', label: 'หนังสือรับเข้า', icon: Inbox },
     { id: 'outgoing', label: 'หนังสือส่งออก', icon: Send },
+    { id: 'appointment', label: 'ออกเลขคำสั่งแต่งตั้ง', icon: FileText },
     { id: 'petition', label: 'หนังสือคำร้อง', icon: FileText },
   ];
 
@@ -352,7 +353,7 @@ export default function App() {
                   <Dashboard onNavigate={setActiveView} userRole={userRole} />
                 </motion.div>
               )}
-              {(activeView === 'incoming' || activeView === 'outgoing') && (
+              {(activeView === 'incoming' || activeView === 'outgoing' || activeView === 'appointment') && (
                 <motion.div
                   key="document-panel"
                   initial={{ opacity: 0, x: 20 }}
