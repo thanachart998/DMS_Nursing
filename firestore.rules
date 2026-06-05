@@ -13,7 +13,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && (
+        request.auth.token.email == 'thanachart.kt@ptu.ac.th' ||
+        request.auth.token.email == 'thanachart.kt@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
 
     function isOwner(userId) {
@@ -35,7 +40,7 @@ service cloud.firestore {
     // Phase 4: Validation Helper for Document
     function isValidDocument(data) {
       return data.keys().hasAll(['doc_type', 'doc_no', 'title', 'date_issued', 'owner_id', 'created_at', 'updated_at', 'category', 'academic_year', 'status']) 
-        && data.doc_type in ['incoming', 'outgoing']
+        && data.doc_type in ['incoming', 'outgoing', 'appointment']
         && data.doc_no is string && data.doc_no.size() <= 100
         && data.title is string && data.title.size() <= 1000
         && data.academic_year is string && data.academic_year.size() <= 100
@@ -46,7 +51,7 @@ service cloud.firestore {
     }
 
     function isValidDocumentUpdate(data) {
-      return data.doc_type in ['incoming', 'outgoing']
+      return data.doc_type in ['incoming', 'outgoing', 'appointment']
         && data.doc_no is string && data.doc_no.size() <= 100
         && data.title is string && data.title.size() <= 1000
         && data.academic_year is string && data.academic_year.size() <= 100
@@ -55,8 +60,30 @@ service cloud.firestore {
     }
 
     function isLecturerOrAdmin() {
-      let role = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return isSignedIn() && (role == 'admin' || role == 'lecturer');
+      return isSignedIn() && (
+        request.auth.token.email == 'thanachart.kt@ptu.ac.th' ||
+        request.auth.token.email == 'thanachart.kt@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'lecturer'))
+      );
+    }
+
+    function isValidMou(data) {
+      return data.keys().hasAll(['academic_year', 'agency', 'signature_date', 'title', 'owner_id', 'created_at', 'updated_at', 'status'])
+        && data.title is string && data.title.size() <= 1000
+        && data.academic_year is string && data.academic_year.size() <= 100
+        && data.agency is string && data.agency.size() <= 200
+        && data.owner_id == request.auth.uid
+        && data.created_at == request.time
+        && data.updated_at == request.time;
+    }
+
+    function isValidMouUpdate(data) {
+      return data.title is string && data.title.size() <= 1000
+        && data.academic_year is string && data.academic_year.size() <= 100
+        && data.agency is string && data.agency.size() <= 200
+        && data.updated_at == request.time;
     }
 
     // 1. Documents Collection
@@ -76,7 +103,26 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 2. Users Collection
+    // 1.5 Mous Collection
+    match /mous/{mouId} {
+      allow read: if isLecturerOrAdmin();
+      allow create: if isAdmin() && isValidMou(incoming());
+      allow update: if isAdmin()
+        && isValidMouUpdate(incoming())
+        && incoming().owner_id == existing().owner_id
+        && incoming().created_at == existing().created_at;
+      allow delete: if isAdmin();
+    }
+
+    // 2. Petitions Collection
+    match /petitions/{petitionId} {
+      allow read: if isLecturerOrAdmin() || isOwner(existing().owner_id);
+      allow create: if isAdmin() && isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 3. Users Collection
     match /users/{userId} {
       // Guest can only read their own profile, Lecturer/Admin can read all
       allow read: if isLecturerOrAdmin() || isOwner(userId);
