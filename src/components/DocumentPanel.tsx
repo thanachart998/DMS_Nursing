@@ -76,7 +76,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     });
   };
 
-  const categories = ['คำสั่ง', 'ประกาศ', 'ระเบียบ', 'ส่งนักศึกษาออกฝึก', 'เชิญ', 'ส่งเกรด', 'วิจัย', 'การเงิน', 'จริยธรรม', 'คณะ', 'สภาการพยาบาล', 'ประกันคุณภาพ', 'คำร้อง', 'บันทึกข้อความ', 'แก้ผลการเรืยน'];
+  const categories = ['คำสั่ง', 'ประกาศ', 'ระเบียบ', 'ส่งนักศึกษาออกฝึก', 'เชิญ', 'ส่งเกรด', 'วิจัย', 'การเงิน', 'จริยธรรม', 'คณะ', 'สภาการพยาบาล', 'ประกันคุณภาพ', 'คำร้อง', 'บันทึกข้อความ', 'แก้ผลการเรืยน', 'ประชุม'];
   const formAcademicYears = getFormAcademicYears();
   
   // Extract unique academic years from existing documents for the filter
