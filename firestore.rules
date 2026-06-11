@@ -13,7 +13,12 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && (
+        request.auth.token.email == 'thanachart.kt@ptu.ac.th' ||
+        request.auth.token.email == 'thanachart.kt@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
 
     function isOwner(userId) {
@@ -55,8 +60,30 @@ service cloud.firestore {
     }
 
     function isLecturerOrAdmin() {
-      let role = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return isSignedIn() && (role == 'admin' || role == 'lecturer');
+      return isSignedIn() && (
+        request.auth.token.email == 'thanachart.kt@ptu.ac.th' ||
+        request.auth.token.email == 'thanachart.kt@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'lecturer'))
+      );
+    }
+
+    function isValidMou(data) {
+      return data.keys().hasAll(['academic_year', 'agency', 'signature_date', 'title', 'owner_id', 'created_at', 'updated_at', 'status'])
+        && data.title is string && data.title.size() <= 1000
+        && data.academic_year is string && data.academic_year.size() <= 100
+        && data.agency is string && data.agency.size() <= 200
+        && data.owner_id == request.auth.uid
+        && data.created_at == request.time
+        && data.updated_at == request.time;
+    }
+
+    function isValidMouUpdate(data) {
+      return data.title is string && data.title.size() <= 1000
+        && data.academic_year is string && data.academic_year.size() <= 100
+        && data.agency is string && data.agency.size() <= 200
+        && data.updated_at == request.time;
     }
 
     // 1. Documents Collection
@@ -76,12 +103,23 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // 1.5 Mous Collection
+    match /mous/{mouId} {
+      allow read: if isLecturerOrAdmin();
+      allow create: if isAdmin() && isValidMou(incoming());
+      allow update: if isAdmin()
+        && isValidMouUpdate(incoming())
+        && incoming().owner_id == existing().owner_id
+        && incoming().created_at == existing().created_at;
+      allow delete: if isAdmin();
+    }
+
     // 2. Petitions Collection
     match /petitions/{petitionId} {
       allow read: if isLecturerOrAdmin() || isOwner(existing().owner_id);
-      allow create: if isSignedIn();
-      allow update: if isAdmin() || isOwner(existing().owner_id);
-      allow delete: if isAdmin() || isOwner(existing().owner_id);
+      allow create: if isAdmin() && isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // 3. Users Collection

@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../lib/firebase';
 import { collection, query, orderBy, getDocs, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { Search, Plus, Trash2, Edit2, Download, FileText, Upload, FileCheck, Loader2, X, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, Download, FileText, Upload, FileCheck, Loader2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatThaiDate, cn, getCurrentAcademicYear, getFormAcademicYears } from '../lib/utils';
-import { PetitionRecord } from '../types';
+import { MouRecord } from '../types';
 
-export default function PetitionPanel({ userRole }: { userRole?: string | null }) {
-  const [petitions, setPetitions] = useState<PetitionRecord[]>([]);
+export default function MouPanel({ userRole }: { userRole?: string | null }) {
+  const [mous, setMous] = useState<MouRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [petitionToDelete, setPetitionToDelete] = useState<string | null>(null);
-  const [editingPetition, setEditingPetition] = useState<PetitionRecord | null>(null);
+  const [mouToDelete, setMouToDelete] = useState<string | null>(null);
+  const [editingMou, setEditingMou] = useState<MouRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('ทุกปีการศึกษา');
 
@@ -23,52 +23,41 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
 
   // Form state
   const [formData, setFormData] = useState({
-    topic: 'ลาออก' as 'ลาออก' | 'พักการเรียน' | 'เทียบโอน',
-    applicant_status: 'นักศึกษา' as 'นักศึกษา' | 'อาจารย์',
-    first_name: '',
-    last_name: '',
-    identifier: '',
-    file_url: '',
     academic_year: getCurrentAcademicYear(),
-    date_issued: new Date().toISOString().split('T')[0],
+    agency: '',
+    title: '',
+    signature_date: new Date().toISOString().split('T')[0],
+    status: 'pending' as any,
+    file_url: '',
   });
 
   const resetForm = () => {
     setSelectedFile(null);
     setFormData({
-      topic: 'ลาออก',
-      applicant_status: 'นักศึกษา',
-      first_name: '',
-      last_name: '',
-      identifier: '',
-      file_url: '',
       academic_year: getCurrentAcademicYear(),
-      date_issued: new Date().toISOString().split('T')[0],
+      agency: '',
+      title: '',
+      signature_date: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      file_url: '',
     });
   };
 
   const formAcademicYears = getFormAcademicYears();
 
   useEffect(() => {
-    fetchPetitions();
+    fetchMous();
   }, []);
 
-  useEffect(() => {
-    // If topic is 'พักการเรียน', force applicant_status to 'นักศึกษา'
-    if (formData.topic === 'พักการเรียน' && formData.applicant_status !== 'นักศึกษา') {
-      setFormData((prev) => ({ ...prev, applicant_status: 'นักศึกษา' }));
-    }
-  }, [formData.topic]);
-
-  async function fetchPetitions() {
+  async function fetchMous() {
     setLoading(true);
     try {
       const q = query(
-        collection(db, 'petitions'), 
+        collection(db, 'mous'), 
         orderBy('created_at', 'desc')
       );
       const snap = await getDocs(q);
-      setPetitions(snap.docs.map(d => ({ id: d.id, ...d.data() } as PetitionRecord)));
+      setMous(snap.docs.map(d => ({ id: d.id, ...d.data() } as MouRecord)));
     } catch (err) {
       console.error(err);
     } finally {
@@ -94,7 +83,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
     try {
       const form = new FormData();
       form.append('file', selectedFile);
-      form.append('filename', `petition_${Date.now()}.pdf`);
+      form.append('filename', `mou_${Date.now()}.pdf`);
 
       const res = await fetch('/api/drive/upload', {
         method: 'POST',
@@ -134,42 +123,41 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
         updated_at: serverTimestamp(),
       };
 
-      if (editingPetition?.id) {
-        await updateDoc(doc(db, 'petitions', editingPetition.id), payload);
+      if (editingMou?.id) {
+        await updateDoc(doc(db, 'mous', editingMou.id), payload);
       } else {
-        await addDoc(collection(db, 'petitions'), {
+        await addDoc(collection(db, 'mous'), {
           ...payload,
           created_at: serverTimestamp(),
         });
       }
       
       setModalOpen(false);
-      setEditingPetition(null);
+      setEditingMou(null);
       resetForm();
-      fetchPetitions();
+      fetchMous();
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleDelete = async () => {
-    if (!petitionToDelete) return;
+    if (!mouToDelete) return;
     try {
-      await deleteDoc(doc(db, 'petitions', petitionToDelete));
+      await deleteDoc(doc(db, 'mous', mouToDelete));
       setDeleteConfirmOpen(false);
-      setPetitionToDelete(null);
-      fetchPetitions();
+      setMouToDelete(null);
+      fetchMous();
     } catch (err) {
       console.error(err);
     }
   };
 
-  const existingAcademicYears = Array.from(new Set(petitions.map(p => p.academic_year).filter(Boolean))).sort().reverse();
+  const existingAcademicYears = Array.from(new Set(mous.map(p => p.academic_year).filter(Boolean))).sort().reverse();
 
-  const filteredPetitions = petitions.filter(p => {
+  const filteredMous = mous.filter(p => {
     const s = searchQuery.toLowerCase();
-    const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
-    const matchSearch = fullName.includes(s) || p.identifier.toLowerCase().includes(s);
+    const matchSearch = p.agency.toLowerCase().includes(s) || p.title.toLowerCase().includes(s);
     const matchYear = selectedYear === 'ทุกปีการศึกษา' || p.academic_year === selectedYear;
     return matchSearch && matchYear;
   });
@@ -177,9 +165,12 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-xl font-bold text-slate-800 uppercase tracking-wide">
-          หนังสือคำร้อง
-        </h2>
+        <div>
+           <h2 className="text-xl font-bold text-slate-800 uppercase tracking-wide">
+            เอกสาร MOU
+          </h2>
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">รายการดัชนีและระบบลงทะเบียนเอกสาร</p>
+        </div>
         
         <div className="flex items-center gap-3">
           <select 
@@ -194,7 +185,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
-              placeholder="ค้นหา (ชื่อ, นามสกุล, รหัส)..."
+              placeholder="ค้นหา (หน่วยงาน, ชื่อเรื่อง)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-shadow placeholder:uppercase placeholder:tracking-wider placeholder:text-xs"
@@ -202,11 +193,11 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
           </div>
           {userRole === 'admin' && (
             <button 
-              onClick={() => { setEditingPetition(null); resetForm(); setModalOpen(true); }}
+              onClick={() => { setEditingMou(null); resetForm(); setModalOpen(true); }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap"
             >
               <Plus size={14} />
-              เพิ่มคำร้องใหม่
+              เพิ่มเอกสาร MOU
             </button>
           )}
         </div>
@@ -217,11 +208,11 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
           <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-100">
               <tr className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                <th className="py-4 px-6">เรื่อง</th>
-                <th className="py-4 px-6">ผู้ยื่นคำร้อง</th>
-                <th className="py-4 px-6">รหัสนักศึกษา / รหัสพนักงาน</th>
-                <th className="py-4 px-6">ชื่อ - นามสกุล</th>
-                <th className="py-4 px-6">วันที่ยื่นคำร้อง</th>
+                <th className="py-4 px-6">วันที่ลงนาม</th>
+                <th className="py-4 px-6">ปีการศึกษา</th>
+                <th className="py-4 px-6">หน่วยงาน</th>
+                <th className="py-4 px-6">ชื่อเรื่อง / สารสำคัญ</th>
+                <th className="py-4 px-6 text-center">สถานะ</th>
                 <th className="py-4 px-6 text-right">จัดการ</th>
               </tr>
             </thead>
@@ -235,56 +226,57 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                     กำลังโหลดข้อมูล...
                   </td>
                 </tr>
-              ) : filteredPetitions.length === 0 ? (
+              ) : filteredMous.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 font-bold uppercase tracking-widest">
-                    ไม่พบข้อมูลคำร้อง
+                    ไม่พบข้อมูล MOU
                   </td>
                 </tr>
-              ) : filteredPetitions.map((petition) => (
-                <tr key={petition.id} className="hover:bg-slate-50 group transition-colors">
-                  <td className="py-4 px-6 font-bold text-slate-900 max-w-[200px] truncate">
+              ) : filteredMous.map((mou) => (
+                <tr key={mou.id} className="hover:bg-slate-50 group transition-colors">
+                  <td className="py-4 px-6 text-slate-400 whitespace-nowrap">
+                    {mou.signature_date ? formatThaiDate(mou.signature_date) : '-'}
+                  </td>
+                  <td className="py-4 px-6 font-bold text-slate-900">
+                    <div className="text-[11px] text-blue-600 font-bold uppercase tracking-tighter bg-blue-50 inline-block px-2 py-0.5 rounded">{mou.academic_year}</div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="text-slate-900 font-bold uppercase text-xs">{mou.agency}</div>
+                  </td>
+                  <td className="py-4 px-6 text-slate-700 max-w-xs truncate">
                     <button 
                       onClick={() => {
-                        setEditingPetition(petition);
+                        setEditingMou(mou);
                         setFormData({
-                          topic: petition.topic,
-                          applicant_status: petition.applicant_status,
-                          first_name: petition.first_name,
-                          last_name: petition.last_name,
-                          identifier: petition.identifier,
-                          file_url: petition.file_url || '',
-                          academic_year: petition.academic_year || getCurrentAcademicYear(),
-                          date_issued: petition.date_issued || new Date().toISOString().split('T')[0],
+                          academic_year: mou.academic_year || getCurrentAcademicYear(),
+                          agency: mou.agency || '',
+                          title: mou.title || '',
+                          signature_date: mou.signature_date || new Date().toISOString().split('T')[0],
+                          status: mou.status || 'pending',
+                          file_url: mou.file_url || '',
                         });
                         setModalOpen(true);
                       }}
-                      className="text-left w-full cursor-pointer hover:underline text-slate-900 font-bold group-hover:text-blue-600 transition-colors uppercase text-sm block truncate"
+                      className="text-left w-full cursor-pointer hover:underline text-slate-700 font-bold group-hover:text-blue-600 transition-colors uppercase text-sm block truncate"
                     >
-                      {petition.topic}
+                      {mou.title}
                     </button>
                   </td>
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6 text-center">
                     <span className={cn(
-                      "px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider",
-                      petition.applicant_status === 'อาจารย์' ? "bg-amber-100 text-amber-800" : "bg-purple-100 text-purple-800"
+                      "px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-widest",
+                      mou.status === 'pending' ? "bg-orange-100 text-orange-700" :
+                      mou.status === 'received' ? "bg-blue-100 text-blue-700" :
+                      mou.status === 'cancelled' ? "bg-red-100 text-red-700" :
+                      "bg-green-100 text-green-700"
                     )}>
-                      {petition.applicant_status}
+                      {mou.status === 'received' ? 'รับแล้ว' : mou.status === 'pending' ? 'รอรับ' : mou.status === 'cancelled' ? 'ยกเลิก' : 'เสร็จสิ้น'}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
-                    <div className="text-slate-900 font-bold">{petition.identifier}</div>
-                  </td>
-                  <td className="py-4 px-6 text-slate-700">
-                    {petition.first_name} {petition.last_name}
-                  </td>
-                  <td className="py-4 px-6 text-slate-400 whitespace-nowrap">
-                    {petition.date_issued ? formatThaiDate(petition.date_issued) : petition.created_at ? formatThaiDate(new Date(petition.created_at.seconds * 1000).toISOString()) : '-'}
-                  </td>
                   <td className="py-4 px-6 text-right space-x-1 flex justify-end">
-                    {petition.file_url ? (
+                    {mou.file_url ? (
                       <a 
-                        href={petition.file_url} 
+                        href={mou.file_url} 
                         target="_blank" 
                         rel="noreferrer"
                         className="p-2 text-slate-400 hover:bg-slate-100 hover:text-blue-600 rounded-lg inline-flex transition-colors"
@@ -302,16 +294,14 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                       <>
                         <button 
                           onClick={() => {
-                            setEditingPetition(petition);
+                            setEditingMou(mou);
                             setFormData({
-                              topic: petition.topic,
-                              applicant_status: petition.applicant_status,
-                              first_name: petition.first_name,
-                              last_name: petition.last_name,
-                              identifier: petition.identifier,
-                              file_url: petition.file_url || '',
-                              academic_year: petition.academic_year || getCurrentAcademicYear(),
-                              date_issued: petition.date_issued || new Date().toISOString().split('T')[0],
+                              academic_year: mou.academic_year || getCurrentAcademicYear(),
+                              agency: mou.agency || '',
+                              title: mou.title || '',
+                              signature_date: mou.signature_date || new Date().toISOString().split('T')[0],
+                              status: mou.status || 'pending',
+                              file_url: mou.file_url || '',
                             });
                             setModalOpen(true);
                           }}
@@ -322,7 +312,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                         </button>
                         <button 
                           onClick={() => {
-                            setPetitionToDelete(petition.id!);
+                            setMouToDelete(mou.id!);
                             setDeleteConfirmOpen(true);
                           }}
                           className="p-2 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-lg transition-colors"
@@ -359,7 +349,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
             >
               <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
                 <div>
-                  <h2 className="text-base font-bold uppercase tracking-wider">{editingPetition ? 'แก้ไขหนังสือคำร้อง' : 'เพิ่มหนังสือคำร้องใหม่'}</h2>
+                  <h2 className="text-base font-bold uppercase tracking-wider">{editingMou ? 'แก้ไขเอกสาร MOU' : 'เพิ่มเอกสาร MOU'}</h2>
                 </div>
                 <button type="button" onClick={() => setModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded transition-colors text-slate-400">
                   <X size={18} />
@@ -368,7 +358,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
 
               <form onSubmit={handleSubmit} className="p-6 bg-slate-50/30 overflow-y-auto w-full">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-4">
-                  <div className="space-y-4">
+                   <div className="space-y-4">
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
@@ -382,82 +372,56 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">วันที่ยื่นคำร้อง</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">วันที่ลงนาม</label>
                         <input 
                           required
                           type="date" 
-                          value={formData.date_issued}
-                          onChange={(e) => setFormData({...formData, date_issued: e.target.value})}
+                          value={formData.signature_date}
+                          onChange={(e) => setFormData({...formData, signature_date: e.target.value})}
                           className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none transition-shadow"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">เรื่องของคำร้อง</label>
-                        <select 
-                          value={formData.topic}
-                          onChange={(e) => setFormData({...formData, topic: e.target.value as any})}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow"
-                        >
-                          <option value="ลาออก">ลาออก</option>
-                          <option value="พักการเรียน">พักการเรียน</option>
-                          <option value="เทียบโอน">เทียบโอน</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">สถานะผู้ยื่นคำร้อง</label>
-                        <select 
-                          value={formData.applicant_status}
-                          onChange={(e) => setFormData({...formData, applicant_status: e.target.value as any})}
-                          disabled={formData.topic === 'พักการเรียน'}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow disabled:bg-slate-100 disabled:text-slate-500"
-                        >
-                          <option value="นักศึกษา">นักศึกษา</option>
-                          {(formData.topic !== 'พักการเรียน') && (
-                            <option value="อาจารย์">อาจารย์</option>
-                          )}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">ชื่อ</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">หน่วยงาน</label>
                         <input 
                           required
                           type="text" 
-                          value={formData.first_name}
-                          onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                          placeholder="ชื่อ..."
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">นามสกุล</label>
-                        <input 
-                          required
-                          type="text" 
-                          value={formData.last_name}
-                          onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                          placeholder="นามสกุล..."
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow"
+                          value={formData.agency}
+                          onChange={(e) => setFormData({...formData, agency: e.target.value})}
+                          placeholder="ระบุหน่วยงาน..."
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow uppercase"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">รหัสนักศึกษา / รหัสพนักงาน</label>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">ชื่อเรื่อง / สารสำคัญ</label>
                       <input 
                         required
                         type="text" 
-                        value={formData.identifier}
-                        onChange={(e) => setFormData({...formData, identifier: e.target.value})}
-                        placeholder="เช่น 12345678"
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow"
+                        value={formData.title}
+                        onChange={(e) => setFormData({...formData, title: e.target.value})}
+                        placeholder="ระบุชื่อเรื่องหรือสาระสำคัญ..."
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow uppercase"
                       />
                     </div>
+                    
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">สถานะเอกสาร</label>
+                        <select 
+                          value={formData.status}
+                          onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow uppercase"
+                        >
+                          <option value="pending">รอรับ</option>
+                          <option value="received">รับแล้ว</option>
+                          <option value="archived">เสร็จสิ้น</option>
+                          <option value="cancelled">ยกเลิก</option>
+                        </select>
+                     </div>
                   </div>
 
                   <div className="space-y-4">
@@ -564,7 +528,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                     type="submit" 
                     className="flex-[2] py-3 px-4 bg-blue-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
                   >
-                    {editingPetition ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
+                    {editingMou ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
                   </button>
                   )}
                 </div>
@@ -594,7 +558,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                 <Trash2 size={24} />
               </div>
               <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการลบ?</h3>
-              <p className="text-sm text-slate-500 font-medium mb-6 uppercase tracking-tight">คุณต้องการลบคำร้องนี้ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+              <p className="text-sm text-slate-500 font-medium mb-6 uppercase tracking-tight">คุณต้องการลบเอกสาร MOU นี้ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้</p>
               <div className="flex gap-3">
                 <button 
                   onClick={() => setDeleteConfirmOpen(false)}

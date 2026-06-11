@@ -30,8 +30,9 @@ import Dashboard from './components/Dashboard';
 import DocumentPanel from './components/DocumentPanel';
 import UserManagement from './components/UserManagement';
 import PetitionPanel from './components/PetitionPanel';
+import MouPanel from './components/MouPanel';
 
-type View = 'dashboard' | 'incoming' | 'outgoing' | 'appointment' | 'users' | 'petition';
+type View = 'dashboard' | 'incoming' | 'outgoing' | 'appointment' | 'users' | 'petition' | 'mou';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -140,11 +141,12 @@ export default function App() {
   }
 
   const menuItems = [
-    { id: 'dashboard', label: 'แผงควบคุม', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'ภาพรวมระบบสารบรรณ', icon: LayoutDashboard },
     { id: 'incoming', label: 'หนังสือรับเข้า', icon: Inbox },
     { id: 'outgoing', label: 'หนังสือส่งออก', icon: Send },
     { id: 'appointment', label: 'ออกเลขคำสั่งแต่งตั้ง', icon: FileText },
     { id: 'petition', label: 'หนังสือคำร้อง', icon: FileText },
+    { id: 'mou', label: 'เอกสาร MOU', icon: FileText },
   ];
 
   const formTemplates = [
@@ -371,6 +373,16 @@ export default function App() {
                   exit={{ opacity: 0, x: -20 }}
                 >
                   <PetitionPanel userRole={userRole} />
+                </motion.div>
+              )}
+              {activeView === 'mou' && (
+                <motion.div
+                  key="mou-panel"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <MouPanel userRole={userRole} />
                 </motion.div>
               )}
               {activeView === 'users' && userRole === 'admin' && (

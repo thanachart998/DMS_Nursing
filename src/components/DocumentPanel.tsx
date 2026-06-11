@@ -385,7 +385,29 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                     {formatThaiDate(doc.date_issued)}
                   </td>
                   <td className="py-4 px-6 max-w-xs">
-                    <div className="text-slate-800 font-semibold truncate group-hover:text-blue-600 transition-colors uppercase text-sm">{doc.title}</div>
+                    <button 
+                      onClick={() => {
+                        setEditingDoc(doc);
+                        setFormData({
+                          doc_no: doc.doc_no,
+                          receive_no: doc.receive_no || '',
+                          doc_subtype: doc.doc_subtype || 'internal',
+                          title: doc.title,
+                          sender: doc.sender,
+                          receiver: doc.receiver,
+                          date_issued: doc.date_issued.toDate().toISOString().split('T')[0],
+                          category: doc.category,
+                          academic_year: doc.academic_year || getCurrentAcademicYear(),
+                          status: doc.status || 'pending',
+                          file_url: doc.file_url || '',
+                          responsible_person: doc.responsible_person || '',
+                        });
+                        setModalOpen(true);
+                      }}
+                      className="text-left w-full cursor-pointer hover:underline text-slate-800 font-semibold truncate group-hover:text-blue-600 transition-colors uppercase text-sm block"
+                    >
+                      {doc.title}
+                    </button>
                     <div className="flex gap-2 mt-0.5">
                       <div className={cn(
                         "text-[11px] font-bold uppercase mt-0.5 tracking-tighter px-1 rounded",
@@ -407,22 +429,23 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                       "px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-widest",
                       doc.status === 'pending' ? "bg-orange-100 text-orange-700" :
                       doc.status === 'received' ? "bg-blue-100 text-blue-700" :
+                      doc.status === 'cancelled' ? "bg-red-100 text-red-700" :
                       "bg-green-100 text-green-700"
                     )}>
-                      {doc.status === 'received' ? 'รับแล้ว' : doc.status === 'pending' ? 'รอรับ' : 'เสร็จสิ้น'}
+                      {doc.status === 'received' ? 'รับแล้ว' : doc.status === 'pending' ? 'รอรับ' : doc.status === 'cancelled' ? 'ยกเลิก' : 'เสร็จสิ้น'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-1 transition-opacity">
                       {doc.file_url && (
                         <a 
                           href={doc.file_url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="p-1.5 hover:bg-white text-blue-600 rounded border border-transparent hover:border-slate-200 transition-all flex items-center gap-1"
+                          className="p-2 hover:bg-slate-100 text-blue-600 rounded-lg border border-transparent transition-all flex items-center gap-1"
                           title="ดูไฟล์ PDF"
                         >
-                          <ExternalLink size={12} />
+                          <ExternalLink size={18} />
                           <span className="text-xs font-bold uppercase tracking-tighter">PDF</span>
                         </a>
                       )}
@@ -447,15 +470,15 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                               });
                               setModalOpen(true);
                             }}
-                            className="p-1.5 hover:bg-white text-slate-400 hover:text-blue-600 rounded border border-transparent hover:border-slate-200 transition-all"
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded-lg border border-transparent transition-all"
                           >
-                            <Edit2 size={12} />
+                            <Edit2 size={18} />
                           </button>
                           <button 
                             onClick={() => confirmDelete(doc.id!)}
-                            className="p-1.5 hover:bg-white text-slate-400 hover:text-red-500 rounded border border-transparent hover:border-slate-200 transition-all"
+                            className="p-2 hover:bg-slate-100 text-slate-400 hover:text-red-500 rounded-lg border border-transparent transition-all"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={18} />
                           </button>
                         </>
                       )}
@@ -661,6 +684,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           <option value="pending">รอรับ</option>
                           <option value="received">รับแล้ว</option>
                           <option value="archived">เสร็จสิ้น</option>
+                          <option value="cancelled">ยกเลิก</option>
                         </select>
                       </div>
                     </div>
@@ -817,14 +841,16 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                     onClick={() => { resetForm(); setModalOpen(false); }}
                     className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-slate-200 transition-colors border border-slate-200"
                   >
-                    ยกเลิก
+                    ปิด
                   </button>
+                  {userRole === 'admin' && (
                   <button 
                     type="submit" 
                     className="flex-[2] py-3 px-4 bg-blue-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
                   >
                     {editingDoc ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
                   </button>
+                  )}
                 </div>
               </form>
             </motion.div>

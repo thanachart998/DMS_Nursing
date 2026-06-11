@@ -14,7 +14,7 @@ export interface DocumentRecord {
   date_issued: any; // Date or Timestamp
   category: string;
   academic_year: string;
-  status: 'pending' | 'received' | 'dispatched' | 'archived';
+  status: 'pending' | 'received' | 'dispatched' | 'archived' | 'cancelled';
   receive_no?: string;
   file_url?: string;
   responsible_person?: string;
@@ -23,9 +23,22 @@ export interface DocumentRecord {
   owner_id: string;
 }
 
+export interface MouRecord {
+  id?: string;
+  academic_year: string;
+  agency: string;
+  signature_date: string;
+  title: string;
+  file_url?: string;
+  status: 'pending' | 'received' | 'dispatched' | 'archived' | 'cancelled';
+  created_at: any;
+  updated_at: any;
+  owner_id: string;
+}
+
 export interface PetitionRecord {
   id?: string;
-  topic: 'ลาออก' | 'พักการเรียน';
+  topic: 'ลาออก' | 'พักการเรียน' | 'เทียบโอน';
   applicant_status: 'นักศึกษา' | 'อาจารย์';
   first_name: string;
   last_name: string;
