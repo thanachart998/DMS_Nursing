@@ -323,7 +323,16 @@ export default function App() {
                 className="bg-slate-100 border-none rounded-lg py-2 pl-9 pr-4 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all placeholder:text-slate-400"
               />
             </div>
-            <div className="h-4 w-px bg-slate-200"></div>
+            <a
+              href="https://nurse.ptu.ac.th"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border border-blue-200"
+            >
+              <Globe size={16} />
+              <span>เว็บไซต์ของคณะ</span>
+            </a>
+            <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
             <div className="flex items-center gap-1.5 text-slate-400 font-bold text-xs bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <span>LIVE SERVER</span>
