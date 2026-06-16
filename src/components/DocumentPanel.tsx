@@ -36,11 +36,18 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
   const [selectedCategory, setSelectedCategory] = useState('ทุกหมวดหมู่');
   const [selectedYear, setSelectedYear] = useState('ทุกปีการศึกษา');
   const [selectedSubtype, setSelectedSubtype] = useState('ทุกประเภท');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
-  // File upload state
+  // File upload state (PDF)
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // File upload state (Word)
+  const [selectedWordFile, setSelectedWordFile] = useState<File | null>(null);
+  const [wordUploading, setWordUploading] = useState(false);
+  const wordFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -55,11 +62,13 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     academic_year: getCurrentAcademicYear(),
     status: 'pending' as any,
     file_url: '',
+    word_url: '',
     responsible_person: '',
   });
 
   const resetForm = () => {
     setSelectedFile(null);
+    setSelectedWordFile(null);
     setFormData({
       doc_no: '',
       receive_no: '',
@@ -72,11 +81,12 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
       academic_year: getCurrentAcademicYear(),
       status: 'pending',
       file_url: '',
+      word_url: '',
       responsible_person: '',
     });
   };
 
-  const categories = ['คำสั่ง', 'ประกาศ', 'ระเบียบ', 'ส่งนักศึกษาออกฝึก', 'เชิญ', 'ส่งเกรด', 'วิจัย', 'การเงิน', 'จริยธรรม', 'คณะ', 'สภาการพยาบาล', 'ประกันคุณภาพ', 'คำร้อง', 'บันทึกข้อความ', 'แก้ผลการเรืยน', 'ประชุม'];
+  const categories = ['คำสั่ง', 'ประกาศ', 'ระเบียบ', 'ส่งนักศึกษาออกฝึก', 'เชิญ', 'ส่งเกรด', 'วิจัย', 'การเงิน', 'จริยธรรม', 'คณะ', 'สภาการพยาบาล', 'ประกันคุณภาพ', 'คำร้อง', 'บันทึกข้อความ', 'แก้ผลการเรืยน', 'ประชุม', 'ศึกษาดูงาน'];
   const formAcademicYears = getFormAcademicYears();
   
   // Extract unique academic years from existing documents for the filter
@@ -192,6 +202,17 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     }
   };
 
+  const handleWordFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.name.endsWith('.doc') && !file.name.endsWith('.docx')) {
+        alert('กรุณาเลือกไฟล์ Word (.doc, .docx) เท่านั้น');
+        return;
+      }
+      setSelectedWordFile(file);
+    }
+  };
+
   const uploadFile = async (docNo: string): Promise<string> => {
     if (!selectedFile) return formData.file_url;
     
@@ -222,6 +243,37 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     }
   };
 
+  const uploadWordFile = async (docNo: string): Promise<string> => {
+    if (!selectedWordFile) return formData.word_url;
+    
+    setWordUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', selectedWordFile);
+      const extension = selectedWordFile.name.endsWith('.docx') ? 'docx' : 'doc';
+      form.append('filename', `${type}_${docNo.replace(/[\/\s\.]/g, '_')}_${Date.now()}.${extension}`);
+
+      const res = await fetch('/api/drive/upload', {
+        method: 'POST',
+        body: form
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+
+      const data = await res.json();
+      return data.url;
+    } catch (error: any) {
+      console.error("Drive upload error:", error);
+      alert(error.message || "เกิดข้อผิดพลาดในการอัปโหลดไปยัง Google Drive");
+      throw error;
+    } finally {
+      setWordUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -232,12 +284,18 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
         finalFileUrl = await uploadFile(formData.doc_no);
       }
 
+      let finalWordUrl = formData.word_url;
+      if (selectedWordFile) {
+        finalWordUrl = await uploadWordFile(formData.doc_no);
+      }
+
       const payload = {
         ...formData,
         file_url: finalFileUrl,
+        word_url: finalWordUrl,
         doc_type: type,
         date_issued: Timestamp.fromDate(new Date(formData.date_issued)),
-        owner_id: auth.currentUser.uid,
+        owner_id: editingDoc?.id ? editingDoc.owner_id : auth.currentUser.uid,
         updated_at: serverTimestamp(),
       };
 
@@ -288,6 +346,13 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
 
     return matchesSearch && matchesCategory && matchesYear && matchesSubtype;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedYear, selectedSubtype, type]);
+
+  const totalPages = Math.ceil(filteredDocs.length / itemsPerPage);
+  const paginatedDocs = filteredDocs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -373,7 +438,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600 mx-auto"></div>
                   </td>
                 </tr>
-              ) : filteredDocs.map((doc) => (
+              ) : paginatedDocs.map((doc) => (
                 <tr key={doc.id} className="hover:bg-slate-50 group transition-colors">
                   <td className="py-4 px-6 font-mono font-bold uppercase tracking-tighter">
                     <div className="text-slate-900">{doc.doc_no}</div>
@@ -400,6 +465,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           academic_year: doc.academic_year || getCurrentAcademicYear(),
                           status: doc.status || 'pending',
                           file_url: doc.file_url || '',
+                          word_url: doc.word_url || '',
                           responsible_person: doc.responsible_person || '',
                         });
                         setModalOpen(true);
@@ -437,12 +503,24 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="flex items-center justify-end gap-1 transition-opacity">
+                      {doc.word_url && (
+                        <a 
+                          href={doc.word_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="p-2 hover:bg-slate-100 text-blue-600 rounded-lg border border-transparent transition-all flex items-center gap-1"
+                          title="ดูไฟล์ Word"
+                        >
+                          <FileText size={18} />
+                          <span className="text-xs font-bold uppercase tracking-tighter">Word</span>
+                        </a>
+                      )}
                       {doc.file_url && (
                         <a 
                           href={doc.file_url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="p-2 hover:bg-slate-100 text-blue-600 rounded-lg border border-transparent transition-all flex items-center gap-1"
+                          className="p-2 hover:bg-slate-100 text-red-600 rounded-lg border border-transparent transition-all flex items-center gap-1"
                           title="ดูไฟล์ PDF"
                         >
                           <ExternalLink size={18} />
@@ -466,6 +544,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                                 academic_year: doc.academic_year || getCurrentAcademicYear(),
                                 status: doc.status,
                                 file_url: doc.file_url || '',
+                                word_url: doc.word_url || '',
                                 responsible_person: doc.responsible_person || '',
                               });
                               setModalOpen(true);
@@ -501,16 +580,42 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
         </div>
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
           <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-            แสดง {filteredDocs.length} จากทั้งหมด {docs.length} รายการ
+            แสดง {filteredDocs.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredDocs.length)} จากทั้งหมด {filteredDocs.length} รายการ
           </p>
-          <div className="flex gap-1">
-            <button className="h-7 px-3 bg-white border border-slate-200 text-xs font-bold text-slate-400 rounded-lg uppercase cursor-not-allowed">ก่อนหน้า</button>
+          {totalPages > 1 && (
             <div className="flex gap-1">
-              <button className="w-7 h-7 bg-blue-600 text-white rounded-lg text-xs font-bold">1</button>
-              <button className="w-7 h-7 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">2</button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-7 px-3 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg uppercase hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ก่อนหน้า
+              </button>
+              <div className="flex gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={cn(
+                      "w-7 h-7 rounded-lg text-xs font-bold",
+                      currentPage === i + 1 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-7 px-3 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg uppercase hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ถัดไป
+              </button>
             </div>
-            <button className="h-7 px-3 bg-white border border-slate-200 text-xs font-bold text-blue-600 rounded-lg uppercase hover:bg-slate-50">ถัดไป</button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -806,7 +911,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           <>
                             <FileText size={24} className="text-blue-500" />
                             <div className="text-center">
-                              <p className="text-xs font-bold text-blue-600 uppercase">มีไฟล์เดิมในระบบแล้ว</p>
+                              <p className="text-xs font-bold text-blue-600 uppercase">มีไฟล์ PDF เดิมในระบบแล้ว</p>
                               <p className="text-[11px] text-slate-400 mt-1 uppercase">ลากไฟล์ใหม่มาวางเพื่อเปลี่ยนไฟล์</p>
                             </div>
                           </>
@@ -815,10 +920,85 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                             <Upload size={24} className="text-slate-300" />
                             <div className="text-center">
                               <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                                ลากไฟล์ PDF มาวางตรงนี้ หรือคลิกเพื่อเลือกไฟล์
+                                ลากไฟล์ PDF มาวางตรงนี้ หรือคลิก
                               </p>
-                              <p className="text-[11px] text-slate-400 mt-0.5 uppercase tracking-tighter">
-                                ระบบจะบันทึกไปยัง Google Drive อัตโนมัติ
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">
+                        ไฟล์เอกสาร (Word - อัปโหลดไปยัง Google Drive)
+                      </label>
+                      <div 
+                        onClick={() => !wordUploading && wordFileInputRef.current?.click()}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (!wordUploading) e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                          if (!wordUploading && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            const file = e.dataTransfer.files[0];
+                            if (!file.name.endsWith('.doc') && !file.name.endsWith('.docx')) {
+                              alert('กรุณาเลือกไฟล์ Word (.doc, .docx) เท่านั้น');
+                              return;
+                            }
+                            setSelectedWordFile(file);
+                          }
+                        }}
+                        className={cn(
+                          "w-full border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all",
+                          wordUploading ? "bg-slate-50 border-slate-200 cursor-not-allowed" :
+                          selectedWordFile 
+                            ? "border-green-400 bg-green-50/30" 
+                            : "border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30"
+                        )}
+                      >
+                        <input 
+                          type="file" 
+                          ref={wordFileInputRef}
+                          onChange={handleWordFileChange}
+                          accept=".doc,.docx"
+                          className="hidden"
+                          disabled={wordUploading}
+                        />
+                        {wordUploading ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 size={24} className="text-blue-600 animate-spin" />
+                            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">กำลังอัปโหลด...</span>
+                          </div>
+                        ) : selectedWordFile ? (
+                          <>
+                            <FileCheck size={24} className="text-green-500" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-slate-700 uppercase truncate max-w-[300px]">
+                                {selectedWordFile.name}
+                              </p>
+                              <p className="text-[11px] text-green-600 font-bold uppercase mt-1">ไฟล์พร้อมสำหรับการบันทึก</p>
+                            </div>
+                          </>
+                        ) : formData.word_url ? (
+                          <>
+                            <FileText size={24} className="text-blue-500" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-blue-600 uppercase">มีไฟล์ Word เดิมในระบบแล้ว</p>
+                              <p className="text-[11px] text-slate-400 mt-1 uppercase">ลากไฟล์ใหม่มาวางเพื่อเปลี่ยนไฟล์</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={24} className="text-slate-300" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">
+                                ลากไฟล์ Word มาวางตรงนี้ หรือคลิก
                               </p>
                             </div>
                           </>

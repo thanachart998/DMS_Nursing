@@ -17,6 +17,7 @@ export interface DocumentRecord {
   status: 'pending' | 'received' | 'dispatched' | 'archived' | 'cancelled';
   receive_no?: string;
   file_url?: string;
+  word_url?: string;
   responsible_person?: string;
   created_at: any;
   updated_at: any;
@@ -30,6 +31,7 @@ export interface MouRecord {
   signature_date: string;
   title: string;
   file_url?: string;
+  word_url?: string;
   status: 'pending' | 'received' | 'dispatched' | 'archived' | 'cancelled';
   created_at: any;
   updated_at: any;
@@ -38,7 +40,7 @@ export interface MouRecord {
 
 export interface PetitionRecord {
   id?: string;
-  topic: 'ลาออก' | 'พักการเรียน';
+  topic: 'ลาออก' | 'พักการเรียน' | 'เทียบโอน';
   applicant_status: 'นักศึกษา' | 'อาจารย์';
   first_name: string;
   last_name: string;
@@ -46,6 +48,7 @@ export interface PetitionRecord {
   academic_year: string;
   date_issued: string;
   file_url?: string;
+  word_url?: string;
   created_at: any;
   updated_at: any;
   owner_id: string;

@@ -15,26 +15,35 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
   const [editingPetition, setEditingPetition] = useState<PetitionRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('ทุกปีการศึกษา');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  // File upload state
+  // File upload state (PDF)
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // File upload state (Word)
+  const [selectedWordFile, setSelectedWordFile] = useState<File | null>(null);
+  const [wordUploading, setWordUploading] = useState(false);
+  const wordFileInputRef = useRef<HTMLInputElement>(null);
+
   // Form state
   const [formData, setFormData] = useState({
-    topic: 'ลาออก' as 'ลาออก' | 'พักการเรียน',
+    topic: 'ลาออก' as 'ลาออก' | 'พักการเรียน' | 'เทียบโอน',
     applicant_status: 'นักศึกษา' as 'นักศึกษา' | 'อาจารย์',
     first_name: '',
     last_name: '',
     identifier: '',
     file_url: '',
+    word_url: '',
     academic_year: getCurrentAcademicYear(),
     date_issued: new Date().toISOString().split('T')[0],
   });
 
   const resetForm = () => {
     setSelectedFile(null);
+    setSelectedWordFile(null);
     setFormData({
       topic: 'ลาออก',
       applicant_status: 'นักศึกษา',
@@ -42,6 +51,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
       last_name: '',
       identifier: '',
       file_url: '',
+      word_url: '',
       academic_year: getCurrentAcademicYear(),
       date_issued: new Date().toISOString().split('T')[0],
     });
@@ -87,6 +97,17 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
     }
   };
 
+  const handleWordFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.name.endsWith('.doc') && !file.name.endsWith('.docx')) {
+        alert('กรุณาเลือกไฟล์ Word (.doc, .docx) เท่านั้น');
+        return;
+      }
+      setSelectedWordFile(file);
+    }
+  };
+
   const uploadFile = async (): Promise<string> => {
     if (!selectedFile) return formData.file_url;
     
@@ -117,6 +138,37 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
     }
   };
 
+  const uploadWordFile = async (): Promise<string> => {
+    if (!selectedWordFile) return formData.word_url;
+    
+    setWordUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', selectedWordFile);
+      const extension = selectedWordFile.name.endsWith('.docx') ? 'docx' : 'doc';
+      form.append('filename', `petition_${Date.now()}.${extension}`);
+
+      const res = await fetch('/api/drive/upload', {
+        method: 'POST',
+        body: form
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+
+      const data = await res.json();
+      return data.url;
+    } catch (error: any) {
+      console.error("Drive upload error:", error);
+      alert(error.message || "เกิดข้อผิดพลาดในการอัปโหลดไปยัง Google Drive");
+      throw error;
+    } finally {
+      setWordUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -127,10 +179,16 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
         finalFileUrl = await uploadFile();
       }
 
+      let finalWordUrl = formData.word_url;
+      if (selectedWordFile) {
+        finalWordUrl = await uploadWordFile();
+      }
+
       const payload = {
         ...formData,
         file_url: finalFileUrl,
-        owner_id: auth.currentUser.uid,
+        word_url: finalWordUrl,
+        owner_id: editingPetition?.id ? editingPetition.owner_id : auth.currentUser.uid,
         updated_at: serverTimestamp(),
       };
 
@@ -173,6 +231,13 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
     const matchYear = selectedYear === 'ทุกปีการศึกษา' || p.academic_year === selectedYear;
     return matchSearch && matchYear;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedYear]);
+
+  const totalPages = Math.ceil(filteredPetitions.length / itemsPerPage);
+  const paginatedPetitions = filteredPetitions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -241,7 +306,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                     ไม่พบข้อมูลคำร้อง
                   </td>
                 </tr>
-              ) : filteredPetitions.map((petition) => (
+              ) : paginatedPetitions.map((petition) => (
                 <tr key={petition.id} className="hover:bg-slate-50 group transition-colors">
                   <td className="py-4 px-6 font-bold text-slate-900 max-w-[200px] truncate">
                     <button 
@@ -254,6 +319,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                           last_name: petition.last_name,
                           identifier: petition.identifier,
                           file_url: petition.file_url || '',
+                          word_url: petition.word_url || '',
                           academic_year: petition.academic_year || getCurrentAcademicYear(),
                           date_issued: petition.date_issued || new Date().toISOString().split('T')[0],
                         });
@@ -282,17 +348,29 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                     {petition.date_issued ? formatThaiDate(petition.date_issued) : petition.created_at ? formatThaiDate(new Date(petition.created_at.seconds * 1000).toISOString()) : '-'}
                   </td>
                   <td className="py-4 px-6 text-right space-x-1 flex justify-end">
-                    {petition.file_url ? (
+                    {petition.word_url && (
+                      <a 
+                        href={petition.word_url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-blue-600 rounded-lg inline-flex transition-colors"
+                        title="ดูไฟล์ Word"
+                      >
+                        <FileText size={18} />
+                      </a>
+                    )}
+                    {petition.file_url && (
                       <a 
                         href={petition.file_url} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-blue-600 rounded-lg inline-flex transition-colors"
-                        title="ดูไฟล์แนบ"
+                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-red-600 rounded-lg inline-flex transition-colors"
+                        title="ดูไฟล์ PDF"
                       >
                         <Download size={18} />
                       </a>
-                    ) : (
+                    )}
+                    {!petition.word_url && !petition.file_url && (
                       <span className="inline-block p-2 text-slate-200" title="ไม่มีไฟล์แนบ">
                         <Download size={18} />
                       </span>
@@ -310,6 +388,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                               last_name: petition.last_name,
                               identifier: petition.identifier,
                               file_url: petition.file_url || '',
+                              word_url: petition.word_url || '',
                               academic_year: petition.academic_year || getCurrentAcademicYear(),
                               date_issued: petition.date_issued || new Date().toISOString().split('T')[0],
                             });
@@ -337,6 +416,45 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+            แสดง {filteredPetitions.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, filteredPetitions.length)} จากทั้งหมด {filteredPetitions.length} รายการ
+          </p>
+          {totalPages > 1 && (
+            <div className="flex gap-1">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-7 px-3 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg uppercase hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ก่อนหน้า
+              </button>
+              <div className="flex gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={cn(
+                      "w-7 h-7 rounded-lg text-xs font-bold",
+                      currentPage === i + 1 
+                        ? "bg-blue-600 text-white" 
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-7 px-3 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg uppercase hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ถัดไป
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -403,6 +521,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                         >
                           <option value="ลาออก">ลาออก</option>
                           <option value="พักการเรียน">พักการเรียน</option>
+                          <option value="เทียบโอน">เทียบโอน</option>
                         </select>
                       </div>
                       <div className="space-y-1">
@@ -521,7 +640,7 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                           <>
                             <FileText size={24} className="text-blue-500" />
                             <div className="text-center">
-                              <p className="text-xs font-bold text-blue-600 uppercase">มีไฟล์เดิมในระบบแล้ว</p>
+                              <p className="text-xs font-bold text-blue-600 uppercase">มีไฟล์ PDF เดิมในระบบแล้ว</p>
                               <p className="text-[11px] text-slate-400 mt-1 uppercase">ลากไฟล์ใหม่มาวางเพื่อเปลี่ยนไฟล์</p>
                             </div>
                           </>
@@ -530,10 +649,85 @@ export default function PetitionPanel({ userRole }: { userRole?: string | null }
                             <Upload size={24} className="text-slate-300" />
                             <div className="text-center">
                               <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                                ลากไฟล์ PDF มาวางตรงนี้ หรือคลิกเพื่อเลือกไฟล์
+                                ลากไฟล์ PDF มาวางตรงนี้ หรือคลิก
                               </p>
-                              <p className="text-[11px] text-slate-400 mt-0.5 uppercase tracking-tighter">
-                                ระบบจะบันทึกไปยัง Google Drive อัตโนมัติ
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">
+                        ไฟล์เอกสารแนบ (Word - ถ้ามี)
+                      </label>
+                      <div 
+                        onClick={() => !wordUploading && wordFileInputRef.current?.click()}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (!wordUploading) e.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+                          if (!wordUploading && e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            const file = e.dataTransfer.files[0];
+                            if (!file.name.endsWith('.doc') && !file.name.endsWith('.docx')) {
+                              alert('กรุณาเลือกไฟล์ Word (.doc, .docx) เท่านั้น');
+                              return;
+                            }
+                            setSelectedWordFile(file);
+                          }
+                        }}
+                        className={cn(
+                          "w-full border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all",
+                          wordUploading ? "bg-slate-50 border-slate-200 cursor-not-allowed" :
+                          selectedWordFile 
+                            ? "border-green-400 bg-green-50/30" 
+                            : "border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50/30"
+                        )}
+                      >
+                        <input 
+                          type="file" 
+                          ref={wordFileInputRef}
+                          onChange={handleWordFileChange}
+                          accept=".doc,.docx"
+                          className="hidden"
+                          disabled={wordUploading}
+                        />
+                        {wordUploading ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 size={24} className="text-blue-600 animate-spin" />
+                            <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">กำลังอัปโหลด...</span>
+                          </div>
+                        ) : selectedWordFile ? (
+                          <>
+                            <FileCheck size={24} className="text-green-500" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-slate-700 uppercase truncate max-w-[300px]">
+                                {selectedWordFile.name}
+                              </p>
+                              <p className="text-[11px] text-green-600 font-bold uppercase mt-1">ไฟล์พร้อมสำหรับการบันทึก</p>
+                            </div>
+                          </>
+                        ) : formData.word_url ? (
+                          <>
+                            <FileText size={24} className="text-blue-500" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-blue-600 uppercase">มีไฟล์ Word เดิมในระบบแล้ว</p>
+                              <p className="text-[11px] text-slate-400 mt-1 uppercase">ลากไฟล์ใหม่มาวางเพื่อเปลี่ยนไฟล์</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={24} className="text-slate-300" />
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-slate-500 uppercase tracking-tight">
+                                ลากไฟล์ Word มาวางตรงนี้ หรือคลิก
                               </p>
                             </div>
                           </>
