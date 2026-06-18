@@ -53,6 +53,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
   const [formData, setFormData] = useState({
     doc_no: '',
     receive_no: '',
+    university_doc_no: '',
     doc_subtype: 'internal' as any,
     title: '',
     sender: '',
@@ -72,6 +73,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     setFormData({
       doc_no: '',
       receive_no: '',
+      university_doc_no: '',
       doc_subtype: 'internal',
       title: '',
       sender: '',
@@ -423,7 +425,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
           <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-100">
               <tr className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                <th className="py-4 px-6">{type === 'incoming' ? 'เลขที่หนังสือ / เลขรับ' : 'เลขที่หนังสือ'}</th>
+                <th className="py-4 px-6">{type === 'incoming' ? 'เลขรับ / เลขที่หนังสือ' : 'เลขที่หนังสือ'}</th>
                 <th className="py-4 px-6">วันที่</th>
                 <th className="py-4 px-6">ชื่อเรื่อง / หัวข้อ</th>
                 {type !== 'appointment' && <th className="py-4 px-6">{type === 'incoming' ? 'จาก/ผู้ส่ง' : 'ถึง/ผู้รับ'}</th>}
@@ -441,9 +443,14 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
               ) : paginatedDocs.map((doc) => (
                 <tr key={doc.id} className="hover:bg-slate-50 group transition-colors">
                   <td className="py-4 px-6 font-mono font-bold uppercase tracking-tighter">
-                    <div className="text-slate-900">{doc.doc_no}</div>
-                    {type === 'incoming' && doc.receive_no && (
-                      <div className="text-blue-600 text-[11px] mt-0.5">เลขรับ: {doc.receive_no}</div>
+                    {type === 'incoming' ? (
+                      <>
+                        <div className="text-slate-900">{doc.receive_no || 'ยังไม่มีเลขรับ'}</div>
+                        {doc.doc_no && <div className="text-blue-600 text-[11px] mt-0.5">เลขต้นทาง: {doc.doc_no}</div>}
+                        {doc.university_doc_no && <div className="text-blue-600 text-[11px] mt-0.5">เลขมหาวิทยาลัย: {doc.university_doc_no}</div>}
+                      </>
+                    ) : (
+                      <div className="text-slate-900">{doc.doc_no}</div>
                     )}
                   </td>
                   <td className="py-4 px-6 whitespace-nowrap text-slate-400 font-medium">
@@ -456,6 +463,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                         setFormData({
                           doc_no: doc.doc_no,
                           receive_no: doc.receive_no || '',
+                          university_doc_no: doc.university_doc_no || '',
                           doc_subtype: doc.doc_subtype || 'internal',
                           title: doc.title,
                           sender: doc.sender,
@@ -535,6 +543,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                               setFormData({
                                 doc_no: doc.doc_no,
                                 receive_no: doc.receive_no || '',
+                                university_doc_no: doc.university_doc_no || '',
                                 doc_subtype: doc.doc_subtype || 'internal',
                                 title: doc.title,
                                 sender: doc.sender,
@@ -742,27 +751,41 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                     </div>
 
                     {type === 'incoming' && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">เลขรับหนังสือ (ออกอัตโนมัติโดยระบบ)</label>
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            value={formData.receive_no}
-                            onChange={(e) => setFormData({...formData, receive_no: e.target.value})}
-                            placeholder="เช่น พย.บ. ข.001/2569"
-                            className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow placeholder:text-slate-300"
-                          />
-                          {!editingDoc && (
-                            <button 
-                              type="button"
-                              onClick={generateNextReceiveNo}
-                              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow-sm hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap"
-                            >
-                              <ArrowUpDown size={12} />
-                              ออกเลขรับอัตโนมัติ
-                            </button>
-                          )}
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">เลขรับหนังสือ (ออกอัตโนมัติโดยระบบ)</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              value={formData.receive_no}
+                              onChange={(e) => setFormData({...formData, receive_no: e.target.value})}
+                              placeholder="เช่น พย.บ. ข.001/2569"
+                              className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow placeholder:text-slate-300"
+                            />
+                            {!editingDoc && (
+                              <button 
+                                type="button"
+                                onClick={generateNextReceiveNo}
+                                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase shadow-sm hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap"
+                              >
+                                <ArrowUpDown size={12} />
+                                ออกเลขรับอัตโนมัติ
+                              </button>
+                            )}
+                          </div>
                         </div>
+                        {formData.doc_subtype === 'external' && (
+                          <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">เลขที่หนังสือสำนักอธิการบดี</label>
+                            <input 
+                              type="text" 
+                              value={formData.university_doc_no || ''}
+                              onChange={(e) => setFormData({...formData, university_doc_no: e.target.value})}
+                              placeholder="เช่น ศธ 0001/2569"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow placeholder:text-slate-300"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 

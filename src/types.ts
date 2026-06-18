@@ -8,6 +8,7 @@ export interface DocumentRecord {
   doc_type: DocType;
   doc_subtype: DocSubtype;
   doc_no: string;
+  university_doc_no?: string;
   title: string;
   sender: string;
   receiver: string;

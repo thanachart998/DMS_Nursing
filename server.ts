@@ -24,7 +24,7 @@ async function startServer() {
 
   const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
   });
 
   // API สำหรับอัพโหลดไฟล์ไปยัง Google Drive ผ่าน Service Account

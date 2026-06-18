@@ -331,7 +331,7 @@ export default function App() {
               className="hidden md:flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border border-blue-200"
             >
               <Globe size={16} />
-              <span>เว็บไซต์ของคณะ</span>
+              <span>เว็บไซต์คณะ</span>
             </a>
             <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
             <div className="flex items-center gap-1.5 text-slate-400 font-bold text-xs bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200 uppercase">
