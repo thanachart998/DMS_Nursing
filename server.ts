@@ -4,6 +4,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import multer from "multer";
+import os from "os";
+import fs from "fs";
 import { google } from "googleapis";
 import { Readable } from "stream";
 import { file } from "googleapis/build/src/apis/file";
@@ -22,8 +24,17 @@ async function startServer() {
 
   app.use(express.json());
 
+  const uploadDir = os.tmpdir();
   const upload = multer({
-    storage: multer.memoryStorage(),
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        cb(null, file.fieldname + "-" + uniqueSuffix + "-" + file.originalname);
+      },
+    }),
     limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
   });
 
@@ -46,6 +57,10 @@ async function startServer() {
         console.log(folderId);
 
         if (!clientEmail || !privateKey || !folderId) {
+          // Cleanup file if error occurs
+          if (req.file.path) {
+            fs.unlink(req.file.path, () => {});
+          }
           return res.status(500).json({
             error:
               "Server configuration missing: Please check GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_DRIVE_FOLDER_ID in environment variables.",
@@ -71,7 +86,7 @@ async function startServer() {
 
         const media = {
           mimeType: req.file.mimetype,
-          body: Readable.from(req.file.buffer),
+          body: fs.createReadStream(req.file.path),
         };
 
         // อัพโหลดไฟล์ขึน Google Drive
@@ -93,6 +108,12 @@ async function startServer() {
           },
           supportsAllDrives: true, // Add this line
         });
+        
+        // ลบไฟล์ชั่วคราวที่เก็บอยู่ในเซิร์ฟเวอร์
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error("Error deleting temp file:", err);
+        });
+
         console.log(`File uploaded successfully: ${file.data.webViewLink}`);
         // ส่ง URL กลับไปให้ Frontend
         res.json({
@@ -101,6 +122,10 @@ async function startServer() {
           success: true,
         });
       } catch (error: any) {
+        // ลบไฟล์ชั่วคราวกรณีเกิดข้อผิดพลาด
+        if (req.file && req.file.path) {
+          fs.unlink(req.file.path, () => {});
+        }
         console.error("🚀 Drive upload error:", error);
 
         res.status(500).json({
