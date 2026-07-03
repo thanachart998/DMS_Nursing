@@ -827,7 +827,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                         value={formData.title}
                         onChange={(e) => setFormData({...formData, title: e.target.value})}
                         placeholder="ระบุชื่อเรื่องหรือสาระสำคัญของเอกสาร..."
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-600 outline-none resize-none transition-shadow placeholder:text-slate-300 uppercase leading-relaxed"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-blue-600 outline-none resize-none transition-shadow placeholder:text-slate-300 leading-relaxed"
                       />
                     </div>
                   </div>

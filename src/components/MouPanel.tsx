@@ -522,7 +522,7 @@ export default function MouPanel({ userRole }: { userRole?: string | null }) {
                         value={formData.title}
                         onChange={(e) => setFormData({...formData, title: e.target.value})}
                         placeholder="ระบุชื่อเรื่องหรือสาระสำคัญ..."
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow uppercase"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow"
                       />
                     </div>
                     
