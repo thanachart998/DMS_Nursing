@@ -11,7 +11,7 @@ import {
 import { motion } from 'motion/react';
 
 export default function Dashboard({ onNavigate, userRole }: { onNavigate: (view: any) => void, userRole?: string | null }) {
-  const [stats, setStats] = useState({ incoming: 0, outgoing: 0, appointment: 0, petition: 0, mou: 0, recent: [] as any[] });
+  const [stats, setStats] = useState({ incoming: 0, outgoing: 0, appointment: 0, mptu_appointment: 0, petition: 0, mou: 0, recent: [] as any[] });
 
   useEffect(() => {
     async function fetchStats() {
@@ -19,6 +19,7 @@ export default function Dashboard({ onNavigate, userRole }: { onNavigate: (view:
       const incSnap = await getDocs(query(docsRef, where('doc_type', '==', 'incoming')));
       const outSnap = await getDocs(query(docsRef, where('doc_type', '==', 'outgoing')));
       const appSnap = await getDocs(query(docsRef, where('doc_type', '==', 'appointment')));
+      const mptuSnap = await getDocs(query(docsRef, where('doc_type', '==', 'mptu_appointment')));
       
       const petRef = collection(db, 'petitions');
       const petSnap = await getDocs(petRef);
@@ -32,6 +33,7 @@ export default function Dashboard({ onNavigate, userRole }: { onNavigate: (view:
         incoming: incSnap.size,
         outgoing: outSnap.size,
         appointment: appSnap.size,
+        mptu_appointment: mptuSnap.size,
         petition: petSnap.size,
         mou: mouSnap.size,
         recent: recentSnap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -61,6 +63,13 @@ export default function Dashboard({ onNavigate, userRole }: { onNavigate: (view:
       value: stats.appointment, 
       icon: FileText, 
       color: 'bg-purple-600',
+    },
+    { 
+      id: 'mptu_appointment', 
+      label: 'คำสั่งแต่งตั้ง มปท.', 
+      value: stats.mptu_appointment, 
+      icon: FileText, 
+      color: 'bg-fuchsia-600',
     },
     { 
       id: 'petition', 
@@ -136,7 +145,7 @@ export default function Dashboard({ onNavigate, userRole }: { onNavigate: (view:
                     </td>
                     <td className="py-3 px-6 text-slate-400 font-mono text-[13px]">{formatThaiDate(doc.date_issued)}</td>
                     <td className="py-3 px-6 text-center whitespace-nowrap">
-                      {doc.doc_type !== 'appointment' && (
+                      {doc.doc_type !== 'appointment' && doc.doc_type !== 'mptu_appointment' && (
                         <span className={cn(
                           "px-1.5 py-0.5 rounded text-[11px] font-bold uppercase",
                           doc.doc_subtype === 'external' ? "bg-purple-100 text-purple-700" : "bg-slate-100 text-slate-600"
@@ -150,9 +159,10 @@ export default function Dashboard({ onNavigate, userRole }: { onNavigate: (view:
                         "px-1.5 py-0.5 rounded text-[11px] font-bold",
                         doc.doc_type === 'incoming' ? "bg-blue-100 text-blue-700" : 
                         doc.doc_type === 'outgoing' ? "bg-indigo-100 text-indigo-700" : 
+                        doc.doc_type === 'mptu_appointment' ? "bg-fuchsia-100 text-fuchsia-700" :
                         "bg-amber-100 text-amber-700"
                       )}>
-                        {doc.doc_type === 'incoming' ? 'รับ' : doc.doc_type === 'outgoing' ? 'ส่ง' : 'คำสั่ง'}
+                        {doc.doc_type === 'incoming' ? 'รับ' : doc.doc_type === 'outgoing' ? 'ส่ง' : doc.doc_type === 'mptu_appointment' ? 'คำสั่ง มปท.' : 'คำสั่ง'}
                       </span>
                     </td>
                   </tr>

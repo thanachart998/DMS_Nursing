@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 
-export type DocType = 'incoming' | 'outgoing' | 'appointment';
+export type DocType = 'incoming' | 'outgoing' | 'appointment' | 'mptu_appointment';
 export type DocSubtype = 'internal' | 'external';
 
 export interface DocumentRecord {

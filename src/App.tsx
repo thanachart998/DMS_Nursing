@@ -33,7 +33,7 @@ import UserManagement from './components/UserManagement';
 import PetitionPanel from './components/PetitionPanel';
 import MouPanel from './components/MouPanel';
 
-type View = 'dashboard' | 'incoming' | 'outgoing' | 'appointment' | 'users' | 'petition' | 'mou';
+type View = 'dashboard' | 'incoming' | 'outgoing' | 'appointment' | 'mptu_appointment' | 'users' | 'petition' | 'mou';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -146,6 +146,7 @@ export default function App() {
     { id: 'incoming', label: 'หนังสือรับเข้า', icon: Inbox },
     { id: 'outgoing', label: 'หนังสือส่งออก', icon: Send },
     { id: 'appointment', label: 'ออกเลขคำสั่งแต่งตั้ง', icon: FileText },
+    { id: 'mptu_appointment', label: 'คำสั่งแต่งตั้ง มปท.', icon: FileText },
     { id: 'petition', label: 'หนังสือคำร้อง', icon: FileText },
     { id: 'mou', label: 'เอกสาร MOU', icon: FileText },
   ];
@@ -365,7 +366,7 @@ export default function App() {
                   <Dashboard onNavigate={setActiveView} userRole={userRole} />
                 </motion.div>
               )}
-              {(activeView === 'incoming' || activeView === 'outgoing' || activeView === 'appointment') && (
+              {(activeView === 'incoming' || activeView === 'outgoing' || activeView === 'appointment' || activeView === 'mptu_appointment') && (
                 <motion.div
                   key="document-panel"
                   initial={{ opacity: 0, x: 20 }}

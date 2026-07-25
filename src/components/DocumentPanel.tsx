@@ -49,6 +49,8 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
   const [wordUploading, setWordUploading] = useState(false);
   const wordFileInputRef = useRef<HTMLInputElement>(null);
 
+  const [customCategory, setCustomCategory] = useState('');
+
   // Form state
   const [formData, setFormData] = useState({
     doc_no: '',
@@ -70,6 +72,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
   const resetForm = () => {
     setSelectedFile(null);
     setSelectedWordFile(null);
+    setCustomCategory('');
     setFormData({
       doc_no: '',
       receive_no: '',
@@ -88,7 +91,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
     });
   };
 
-  const categories = ['คำสั่ง', 'ประกาศ', 'ระเบียบ', 'ส่งนักศึกษาออกฝึก', 'เชิญ', 'ส่งเกรด', 'วิจัย', 'การเงิน', 'จริยธรรม', 'คณะ', 'สภาการพยาบาล', 'ประกันคุณภาพ', 'คำร้อง', 'บันทึกข้อความ', 'แก้ผลการเรืยน', 'ประชุม', 'ศึกษาดูงาน'];
+  const categories = ['คำสั่ง', 'ประกาศ', 'ระเบียบ', 'ส่งนักศึกษาออกฝึก', 'เชิญ', 'ส่งเกรด', 'วิจัย', 'การเงิน', 'จริยธรรม', 'คณะ', 'สภาการพยาบาล', 'ประกันคุณภาพ', 'คำร้อง', 'บันทึกข้อความ', 'แก้ผลการเรืยน', 'ประชุม', 'ศึกษาดูงาน', 'อื่นๆ'];
   const formAcademicYears = getFormAcademicYears();
   
   // Extract unique academic years from existing documents for the filter
@@ -293,6 +296,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
 
       const payload = {
         ...formData,
+        category: formData.category === 'อื่นๆ' ? customCategory : formData.category,
         file_url: finalFileUrl,
         word_url: finalWordUrl,
         doc_type: type,
@@ -361,7 +365,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-tight">
-            {type === 'appointment' ? 'ออกเลขคำสั่งแต่งตั้ง' : type === 'incoming' ? 'ทะเบียนหนังสือรับ' : 'ทะเบียนหนังสือส่ง'}
+            {type === 'appointment' ? 'ออกเลขคำสั่งแต่งตั้ง' : type === 'mptu_appointment' ? 'คำสั่งแต่งตั้ง มปท.' : type === 'incoming' ? 'ทะเบียนหนังสือรับ' : 'ทะเบียนหนังสือส่ง'}
           </h1>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">รายการดัชนีและระบบลงทะเบียนเอกสาร</p>
         </div>
@@ -371,7 +375,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2"
           >
             <Plus size={14} />
-            {type === 'appointment' ? 'ออกเลขคำสั่งแต่งตั้ง' : 'ลงทะเบียนเอกสารใหม่'}
+            {type === 'appointment' ? 'ออกเลขคำสั่งแต่งตั้ง' : type === 'mptu_appointment' ? 'คำสั่งแต่งตั้ง มปท.' : 'ลงทะเบียนเอกสารใหม่'}
           </button>
         )}
       </div>
@@ -428,7 +432,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                 <th className="py-4 px-6">{type === 'incoming' ? 'เลขรับ / เลขที่หนังสือ' : 'เลขที่หนังสือ'}</th>
                 <th className="py-4 px-6">วันที่</th>
                 <th className="py-4 px-6">ชื่อเรื่อง / หัวข้อ</th>
-                {type !== 'appointment' && <th className="py-4 px-6">{type === 'incoming' ? 'จาก/ผู้ส่ง' : 'ถึง/ผู้รับ'}</th>}
+                {type !== 'appointment' && type !== 'mptu_appointment' && <th className="py-4 px-6">{type === 'incoming' ? 'จาก/ผู้ส่ง' : 'ถึง/ผู้รับ'}</th>}
                 <th className="py-4 px-6 text-center">สถานะ</th>
                 <th className="py-4 px-6 text-right">จัดการ</th>
               </tr>
@@ -436,7 +440,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
             <tbody className="divide-y divide-slate-100 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={type === 'appointment' ? 5 : 6} className="px-6 py-20 text-center">
+                  <td colSpan={type === 'appointment' || type === 'mptu_appointment' ? 5 : 6} className="px-6 py-20 text-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-200 border-t-blue-600 mx-auto"></div>
                   </td>
                 </tr>
@@ -460,6 +464,8 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                     <button 
                       onClick={() => {
                         setEditingDoc(doc);
+                        const isCustom = !categories.includes(doc.category) && doc.category !== '';
+                        setCustomCategory(isCustom ? doc.category : '');
                         setFormData({
                           doc_no: doc.doc_no,
                           receive_no: doc.receive_no || '',
@@ -469,7 +475,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           sender: doc.sender,
                           receiver: doc.receiver,
                           date_issued: doc.date_issued.toDate().toISOString().split('T')[0],
-                          category: doc.category,
+                          category: isCustom ? 'อื่นๆ' : doc.category,
                           academic_year: doc.academic_year || getCurrentAcademicYear(),
                           status: doc.status || 'pending',
                           file_url: doc.file_url || '',
@@ -493,7 +499,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                       <div className="text-[11px] text-blue-400 font-bold uppercase mt-0.5 tracking-tighter border-l border-slate-200 pl-2">{doc.academic_year}</div>
                     </div>
                   </td>
-                  {type !== 'appointment' && (
+                  {type !== 'appointment' && type !== 'mptu_appointment' && (
                     <td className="py-4 px-6 text-slate-500 font-medium uppercase tracking-tight">
                       {type === 'incoming' ? doc.sender : doc.receiver}
                     </td>
@@ -540,6 +546,8 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           <button 
                             onClick={() => {
                               setEditingDoc(doc);
+                              const isCustom = !categories.includes(doc.category) && doc.category !== '';
+                              setCustomCategory(isCustom ? doc.category : '');
                               setFormData({
                                 doc_no: doc.doc_no,
                                 receive_no: doc.receive_no || '',
@@ -549,7 +557,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                                 sender: doc.sender,
                                 receiver: doc.receiver,
                                 date_issued: doc.date_issued.toDate().toISOString().split('T')[0],
-                                category: doc.category,
+                                category: isCustom ? 'อื่นๆ' : doc.category,
                                 academic_year: doc.academic_year || getCurrentAcademicYear(),
                                 status: doc.status,
                                 file_url: doc.file_url || '',
@@ -576,7 +584,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
               ))}
               {!loading && filteredDocs.length === 0 && (
                 <tr>
-                  <td colSpan={type === 'appointment' ? 5 : 6} className="px-6 py-24 text-center">
+                  <td colSpan={type === 'appointment' || type === 'mptu_appointment' ? 5 : 6} className="px-6 py-24 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-300 gap-4">
                       <FileText size={48} className="opacity-10" />
                       <p className="text-xs font-bold uppercase tracking-[0.2em]">ไม่พบข้อมูลที่ค้นหา</p>
@@ -690,7 +698,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
               <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
                 <div>
                   <h2 className="text-base font-bold uppercase tracking-wider">{editingDoc ? 'แก้ไขข้อมูลการลงทะเบียน' : 'ลงทะเบียนเอกสารใหม่'}</h2>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">{type === 'appointment' ? 'ประเภท: คำสั่งแต่งตั้ง' : type === 'incoming' ? 'ประเภท: หนังสือรับ' : 'ประเภท: หนังสือส่ง'}</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">{type === 'appointment' ? 'ประเภท: คำสั่งแต่งตั้ง' : type === 'mptu_appointment' ? 'ประเภท: คำสั่งแต่งตั้ง มปท.' : type === 'incoming' ? 'ประเภท: หนังสือรับ' : 'ประเภท: หนังสือส่ง'}</p>
                 </div>
                 <button type="button" onClick={() => setModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded transition-colors text-slate-400">
                   <X size={18} />
@@ -734,7 +742,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                           type="text" 
                           value={formData.doc_no}
                           onChange={(e) => setFormData({...formData, doc_no: e.target.value})}
-                          placeholder={type === 'incoming' ? "เช่น ศธ 0001/2569" : type === 'appointment' ? "เช่น พย.บ. ต.001/2569" : "เช่น พย.บ. 0001/2569"}
+                          placeholder={type === 'incoming' ? "เช่น ศธ 0001/2569" : type === 'appointment' ? "เช่น พย.บ. ต.001/2569" : type === 'mptu_appointment' ? "เช่น พย.บ. 0001/2569" : "เช่น พย.บ. 0001/2569"}
                           className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow placeholder:text-slate-300"
                         />
                         {(type === 'outgoing' || type === 'appointment') && !editingDoc && (
@@ -834,7 +842,7 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {type !== 'appointment' && (
+                      {type !== 'appointment' && type !== 'mptu_appointment' && (
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-0.5">
                             {type === 'incoming' ? 'หน่วยงานผู้ส่ง' : 'หน่วยงานผู้รับ'}
@@ -857,6 +865,16 @@ export default function DocumentPanel({ type, userRole }: { type: DocType, userR
                         >
                           {categories.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
+                        {formData.category === 'อื่นๆ' && (
+                          <input
+                            type="text"
+                            required
+                            value={customCategory}
+                            onChange={(e) => setCustomCategory(e.target.value)}
+                            placeholder="ระบุหมวดหมู่เพิ่มเติม..."
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-shadow mt-2"
+                          />
+                        )}
                       </div>
                     </div>
 
